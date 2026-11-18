@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El modelo atómico de Rutherford</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#140506;--ink:#fff3ec;--soft:#efc9bb;--gold:#ffc94d;--blue:#8fb2e6;--cyan:#9fe8ff}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 1.06rem/1.62 'Instrument Sans',system-ui,sans-serif}
+#orb,#atom{position:fixed;inset:0;width:100%;height:100%}
+#orb{z-index:0}
+#atom{z-index:1;pointer-events:none}
+#bar{position:fixed;top:0;left:0;height:2px;width:0;background:var(--gold);z-index:5}
+main{position:relative;z-index:2}
+section{height:100vh;display:flex;align-items:center;padding:0 6vw}
+.t{max-width:27rem;text-shadow:0 1px 18px rgba(20,5,6,.9)}
+h1,h2{font-family:'Instrument Serif',Georgia,serif;font-weight:400;line-height:.95;letter-spacing:-.015em}
+h1{font-size:clamp(3.4rem,7.4vw,6.6rem);margin-bottom:1.3rem}
+h2{font-size:clamp(2.8rem,5.6vw,4.8rem);margin-bottom:1.1rem}
+.t p{color:var(--soft);max-width:34ch}
+.t p+p{margin-top:.9rem}
+.k{font-weight:600;color:var(--c)}
+.hint{color:var(--gold)!important;font-weight:500;font-size:.95rem}
+@media(max-width:800px){
+  section{align-items:flex-end;padding:0 5vw 7vh}
+  .t{max-width:none;padding:1.2rem 1.3rem;background:rgba(20,5,6,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:14px}
+  .t p{max-width:none;font-size:1rem}
+  h1{font-size:2.9rem}h2{font-size:2.5rem}
+}
+</style>
+</head>
+<body>
+<canvas id="orb"></canvas>
+<canvas id="atom"></canvas>
+<div id="bar"></div>
+<main>
+  <section><div class="t">
+    <h1>El átomo de Rutherford</h1>
+    <p>En 1911, Ernest Rutherford propuso un átomo con un núcleo diminuto en el centro y electrones girando a su alrededor, como planetas.</p>
+    <p class="hint">Baja para acercarte a cada parte.</p>
+  </div></section>
+
+  <section><div class="t">
+    <h2>El núcleo</h2>
+    <p>Concentra toda la carga positiva y casi toda la masa del átomo. Es unas 10.000 veces más pequeño que el átomo completo y está hecho de protones y neutrones.</p>
+  </div></section>
+
+  <section><div class="t" style="--c:var(--gold)">
+    <h2>Protones</h2>
+    <p>Son las esferas <span class="k">doradas</span>. Tienen carga positiva y su cantidad, el número atómico, define el elemento: el oro tiene 79.</p>
+  </div></section>
+
+  <section><div class="t" style="--c:var(--blue)">
+    <h2>Neutrones</h2>
+    <p>Son las esferas <span class="k">azules</span>. No tienen carga. Rutherford los supuso hacia 1920 para explicar la masa del núcleo, y James Chadwick los descubrió en 1932.</p>
+  </div></section>
+
+  <section><div class="t" style="--c:var(--cyan)">
+    <h2>Electrones</h2>
+    <p>Son las esferas <span class="k">celestes</span>. Tienen carga negativa y una masa unas 1.836 veces menor que la de un protón. El núcleo los atrae y los mantiene girando, como el Sol a los planetas.</p>
+    <p>En un átomo neutro hay tantos electrones como protones.</p>
+  </div></section>
+
+  <section><div class="t">
+    <h2>Órbitas</h2>
+    <p>Los anillos son las trayectorias circulares que sigue cada electrón en este modelo. Rutherford no explicó por qué un electrón estaría en una órbita y no en otra.</p>
+  </div></section>
+
+  <section><div class="t">
+    <h2>Casi todo es vacío</h2>
+    <p>Si el núcleo fuera una canica en el centro de un estadio, los electrones estarían en las gradas y entre ambos no habría nada.</p>
+    <p>Lo comprobaron Geiger y Marsden: al disparar partículas alfa contra una lámina de oro, casi todas la atravesaron y solo una de cada 8.000, aproximadamente, rebotó.</p>
+  </div></section>
+
+  <section><div class="t">
+    <h2>Lo que no podía explicar</h2>
+    <p>Una carga que gira emite energía según el electromagnetismo clásico, así que el electrón caería en espiral hacia el núcleo en una fracción de segundo. Tampoco explicaba los espectros de líneas de los elementos.</p>
+    <p>En 1913, Niels Bohr lo resolvió con órbitas de energía cuantizada.</p>
+  </div></section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motion = reduce ? 0.25 : 1;
+let scrollVel = 0, lastY = scrollY, orbOff = [0.22, 0];
+
+/* ---------- Fondo: orbe nítido en rojo (shader adaptado del VoicePoweredOrb) ---------- */
+const orbC = document.getElementById('orb');
+const og = orbC.getContext('webgl', { alpha: true, premultipliedAlpha: true });
+const orbU = {}; let orbTime = 0, orbRot = 0;
+if (og) {
+  const vs = `attribute vec2 position;varying vec2 vUv;void main(){vUv=position*.5+.5;gl_Position=vec4(position,0.,1.);}`;
+  const fs = `precision highp float;
+  uniform float iTime;uniform vec3 iResolution;uniform vec2 uOff;uniform float hover;uniform float rot;uniform float hoverIntensity;varying vec2 vUv;
+  vec3 hash33(vec3 p3){p3=fract(p3*vec3(0.1031,0.11369,0.13787));p3+=dot(p3,p3.yxz+19.19);
+    return -1.0+2.0*fract(vec3(p3.x+p3.y,p3.x+p3.z,p3.y+p3.z)*p3.zyx);}
+  float snoise3(vec3 p){const float K1=0.333333333;const float K2=0.166666667;
+    vec3 i=floor(p+(p.x+p.y+p.z)*K1);vec3 d0=p-(i-(i.x+i.y+i.z)*K2);
+    vec3 e=step(vec3(0.0),d0-d0.yzx);vec3 i1=e*(1.0-e.zxy);vec3 i2=1.0-e.zxy*(1.0-e);
+    vec3 d1=d0-(i1-K2);vec3 d2=d0-(i2-K1);vec3 d3=d0-0.5;
+    vec4 h=max(0.6-vec4(dot(d0,d0),dot(d1,d1),dot(d2,d2),dot(d3,d3)),0.0);
+    vec4 n=h*h*h*h*vec4(dot(d0,hash33(i)),dot(d1,hash33(i+i1)),dot(d2,hash33(i+i2)),dot(d3,hash33(i+1.0)));
+    return dot(vec4(31.316),n);}
+  vec4 extractAlpha(vec3 c){float a=max(max(c.r,c.g),c.b);return vec4(c.rgb/(a+1e-5),a);}
+  const vec3 c1=vec3(0.96,0.14,0.12);const vec3 c2=vec3(1.0,0.46,0.26);const vec3 c3=vec3(0.36,0.02,0.06);
+  const float innerRadius=0.6;const float noiseScale=0.65;
+  float light1(float i,float a,float d){return i/(1.0+d*a);}
+  float light2(float i,float a,float d){return i/(1.0+d*d*a);}
+  vec4 draw(vec2 uv){
+    float ang=atan(uv.y,uv.x);float len=length(uv);float invLen=len>0.0?1.0/len:0.0;
+    float n0=snoise3(vec3(uv*noiseScale,iTime*0.5))*0.5+0.5;
+    float r0=mix(mix(innerRadius,1.0,0.4),mix(innerRadius,1.0,0.6),n0);
+    float d0=distance(uv,(r0*invLen)*uv);
+    float v0=light1(1.0,10.0,d0);v0*=smoothstep(r0*1.05,r0,len);
+    float cl=cos(ang+iTime*2.0)*0.5+0.5;
+    float a=iTime*-1.0;vec2 pos=vec2(cos(a),sin(a))*r0;float d=distance(uv,pos);
+    float v1=light2(1.5,5.0,d);v1*=light1(1.0,50.0,d0);
+    float v2=smoothstep(1.0,mix(innerRadius,1.0,n0*0.5),len);
+    float v3=smoothstep(innerRadius,mix(innerRadius,1.0,0.5),len);
+    vec3 col=mix(c1,c2,cl);col=mix(c3,col,v0);col=(col+v1)*v2*v3;col=clamp(col,0.0,1.0);
+    return extractAlpha(col);}
+  void main(){
+    vec2 fc=vUv*iResolution.xy;vec2 center=iResolution.xy*(vec2(0.5)+uOff);float size=min(iResolution.x,iResolution.y);
+    vec2 uv=(fc-center)/size*2.0;float s=sin(rot);float c=cos(rot);uv=vec2(c*uv.x-s*uv.y,s*uv.x+c*uv.y);
+    uv.x+=hover*hoverIntensity*0.1*sin(uv.y*10.0+iTime);uv.y+=hover*hoverIntensity*0.1*sin(uv.x*10.0+iTime);
+    vec4 col=draw(uv);gl_FragColor=vec4(col.rgb*col.a,col.a);}`;
+  const sh = (t, s) => { const o = og.createShader(t); og.shaderSource(o, s); og.compileShader(o); return o; };
+  const pr = og.createProgram();
+  og.attachShader(pr, sh(og.VERTEX_SHADER, vs)); og.attachShader(pr, sh(og.FRAGMENT_SHADER, fs));
+  og.linkProgram(pr); og.useProgram(pr);
+  og.bindBuffer(og.ARRAY_BUFFER, og.createBuffer());
+  og.bufferData(og.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), og.STATIC_DRAW);
+  const loc = og.getAttribLocation(pr, 'position');
+  og.enableVertexAttribArray(loc); og.vertexAttribPointer(loc, 2, og.FLOAT, false, 0, 0);
+  ['iTime','iResolution','uOff','hover','rot','hoverIntensity'].forEach(n => orbU[n] = og.getUniformLocation(pr, n));
+}
+function orbDraw(dt) {
+  if (!og) return;
+  orbTime += dt * motion; orbRot += dt * 0.1 * motion + scrollVel * 0.01;
+  const hv = Math.min(scrollVel * 0.6, 1);
+  og.viewport(0, 0, orbC.width, orbC.height);
+  og.clearColor(0, 0, 0, 0); og.clear(og.COLOR_BUFFER_BIT);
+  og.uniform1f(orbU.iTime, orbTime);
+  og.uniform3f(orbU.iResolution, orbC.width, orbC.height, 1);
+  og.uniform2f(orbU.uOff, orbOff[0], orbOff[1]);
+  og.uniform1f(orbU.hover, hv); og.uniform1f(orbU.rot, orbRot);
+  og.uniform1f(orbU.hoverIntensity, 0.8 * hv);
+  og.drawArrays(og.TRIANGLES, 0, 3);
+}
+
+/* ---------- Átomo 3D ---------- */
+const R = new THREE.WebGLRenderer({ canvas: document.getElementById('atom'), alpha: true, antialias: true });
+R.setPixelRatio(Math.min(devicePixelRatio, 2));
+const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+sc.add(new THREE.AmbientLight(0xffffff, 0.6));
+const pl = new THREE.PointLight(0xffffff, 1.3); pl.position.set(6, 8, 10); sc.add(pl);
+const atom = new THREE.Group(); sc.add(atom);
+const nuc = new THREE.Group(); atom.add(nuc);
+const mat = (c, e) => new THREE.MeshPhongMaterial({ color: c, emissive: e || 0, transparent: true, shininess: 70 });
+const mP = mat(0xffc94d, 0x6b4a00), mN = mat(0x7f9fd0, 0x1b2a45), sg = new THREE.SphereGeometry(0.34, 28, 20);
+[[0,0,0],[.5,.2,.1],[-.45,.25,.2],[.1,-.5,.25],[.05,.3,-.5],[-.3,-.3,-.3],[.45,-.25,-.3],[-.1,.55,.3]].forEach((p, i) => {
+  const m = new THREE.Mesh(sg, i % 2 ? mN : mP); m.position.set(...p); nuc.add(m);
+});
+const mRing = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true });
+const mEl = mat(0xbff4ff, 0x4cc9f0), els = [], orbs = [];
+[[3, .3, 0, 1], [4.4, 1.1, .5, 2], [5.8, -.6, 1, 2]].forEach(([r, tx, tz, n]) => {
+  const g = new THREE.Group(); g.rotation.set(tx, 0, tz); atom.add(g); orbs.push(g);
+  const pp = []; for (let i = 0; i <= 120; i++) { const a = i / 120 * 6.2832; pp.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r)); }
+  g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pp), mRing));
+  for (let k = 0; k < n; k++) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.19, 20, 14), mEl); g.add(e);
+    els.push({ e, r, a: k * 6.2832 / n + tx, w: 1.0 / Math.pow(r / 3, 1.5) });
+  }
+});
+
+/* una etapa de cámara por sección; el scroll interpola entre ellas */
+const st = o => Object.assign({ cx: 0, cy: 0, cz: 17, tx: 0, ty: 0, tz: 0, follow: 0, nuc: 1, ring: .5, el: 1, pOp: 1, nOp: 1, dec: 0 }, o);
+const S = [
+  st({ cy: 1.5, cz: 17 }),                                   // átomo completo
+  st({ cy: .4, cz: 5.2, ring: .12, el: .15 }),               // núcleo
+  st({ cx: 1.6, cy: 1, cz: 3, ring: 0, el: 0, nOp: .12 }),   // protones
+  st({ cx: -1.6, cy: -.6, cz: 3, ring: 0, el: 0, pOp: .12 }),// neutrones
+  st({ cz: 12, follow: 1, ring: .25, pOp: .5, nOp: .5 }),    // electrón
+  st({ cy: 9, cz: 13, ring: 1 }),                            // órbitas
+  st({ cy: 1, cz: 24, nuc: .35, ring: .35 }),                // vacío
+  st({ cz: 13, ring: .45, dec: 1 })                          // límites
+];
+const keys = Object.keys(S[0]), cur = Object.assign({}, S[0]);
+const L = (a, b, k) => a + (b - a) * k;
+const ew = new THREE.Vector3(), bp = new THREE.Vector3(), bt = new THREE.Vector3(), off = new THREE.Vector3(1.9, 1.0, 2.6);
+let tDecay = 0;
+
+function resize() {
+  const w = innerWidth, h = innerHeight, dpr = Math.min(devicePixelRatio, 1.5);
+  R.setSize(w, h, false); cam.aspect = w / h; cam.fov = w < 800 ? 62 : 45;
+  if (w >= 800) { cam.setViewOffset(w, h, -w * 0.22, 0, w, h); orbOff = [0.22, 0]; }
+  else { cam.setViewOffset(w, h, 0, h * 0.2, w, h); orbOff = [0, 0.2]; }
+  cam.updateProjectionMatrix();
+  orbC.width = Math.round(w * dpr); orbC.height = Math.round(h * dpr);
+}
+addEventListener('resize', resize); resize();
+
+const sm = x => x * x * (3 - 2 * x);
+let last = performance.now();
+function frame(t) {
+  requestAnimationFrame(frame);
+  const dt = Math.min((t - last) / 1000, 0.033); last = t;
+  scrollVel = scrollVel * 0.92 + Math.abs(scrollY - lastY) * 0.004; lastY = scrollY;
+
+  const p = Math.min(Math.max(scrollY / innerHeight, 0), S.length - 1);
+  const i = Math.floor(p), j = Math.min(i + 1, S.length - 1), u = sm(p - i), k = 1 - Math.exp(-dt * 6);
+  keys.forEach(key => { cur[key] = L(cur[key], L(S[i][key], S[j][key], u), k); });
+
+  if (cur.dec > 0.05) tDecay += dt * motion; else tDecay = 0;
+  const f = L(1, 1 - 0.9 * Math.pow((tDecay % 6) / 6, 1.6), Math.min(cur.dec, 1));
+
+  mP.opacity = cur.pOp; mN.opacity = cur.nOp; nuc.scale.setScalar(cur.nuc);
+  mRing.opacity = cur.ring; mEl.opacity = cur.el;
+  orbs.forEach(g => { g.visible = cur.ring > 0.02; g.scale.setScalar(f); });
+  els.forEach(o => {
+    o.a += o.w * dt * motion / Math.pow(f, 1.5);
+    o.e.position.set(Math.cos(o.a) * o.r, 0, Math.sin(o.a) * o.r);
+    o.e.visible = cur.el > 0.02;
+  });
+  atom.rotation.y += dt * 0.12 * motion;
+
+  els[0].e.getWorldPosition(ew);
+  const fo = Math.min(Math.max(cur.follow, 0), 1);
+  bp.set(cur.cx, cur.cy, cur.cz).lerp(ew.clone().add(off), fo);
+  bt.set(cur.tx, cur.ty, cur.tz).lerp(ew, fo);
+  cam.position.copy(bp); cam.lookAt(bt);
+
+  R.render(sc, cam);
+  orbDraw(dt);
+}
+requestAnimationFrame(frame);
+
+const bar = document.getElementById('bar');
+addEventListener('scroll', () => {
+  bar.style.width = (scrollY / (document.documentElement.scrollHeight - innerHeight) * 100) + '%';
+}, { passive: true });
+</script>
+</body>
+</html>
